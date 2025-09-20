@@ -1,4 +1,4 @@
-@import './globals.css';
+﻿@import './globals.css';
 @import './window.css';
 
 body {
@@ -11,6 +11,8 @@ body {
   font-size: 14px;
   margin: 0;
   overflow: hidden;
+  background-color: #020617;
+  color: #e2e8f0;
 }
 
 html,

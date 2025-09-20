@@ -1,4 +1,4 @@
-import { ConveyorApi } from '@/lib/preload/shared'
+﻿import { ConveyorApi } from '@/lib/preload/shared'
 
 export class WindowApi extends ConveyorApi {
   // Generate window methods
@@ -9,6 +9,7 @@ export class WindowApi extends ConveyorApi {
   windowMaximize = () => this.invoke('window-maximize')
   windowClose = () => this.invoke('window-close')
   windowMaximizeToggle = () => this.invoke('window-maximize-toggle')
+  windowSetAlwaysOnTop = (enabled: boolean) => this.invoke('window-set-always-on-top', enabled)
 
   // Generate web methods
   webUndo = () => this.invoke('web-undo')

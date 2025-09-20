@@ -1,4 +1,4 @@
-import { z } from 'zod'
+﻿import { z } from 'zod'
 
 export const windowIpcSchema = {
   'window-init': {
@@ -33,6 +33,10 @@ export const windowIpcSchema = {
   },
   'window-maximize-toggle': {
     args: z.tuple([]),
+    return: z.void(),
+  },
+  'window-set-always-on-top': {
+    args: z.tuple([z.boolean()]),
     return: z.void(),
   },
 

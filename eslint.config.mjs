@@ -16,6 +16,8 @@ export default [
       '.eslintignore',
       '.eslintrc',
       '.prettierrc',
+      'scripts/**',
+      'supabase/**',
     ],
   },
   eslint.configs.recommended,

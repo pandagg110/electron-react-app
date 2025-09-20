@@ -11,19 +11,25 @@ export function createAppWindow(): void {
 
   // Create the main window.
   const mainWindow = new BrowserWindow({
-    width: 900,
-    height: 670,
+    width: 896,
+    height: 504,
+    minWidth: 480,
+    minHeight: 320,
     show: false,
-    backgroundColor: '#1c1c1c',
+    backgroundColor: '#0f172a',
     icon: appIcon,
     frame: false,
     titleBarStyle: 'hiddenInset',
-    title: 'Electron React App',
-    maximizable: false,
-    resizable: false,
+    title: '����ʮ����ָ�ӹ���',
+    maximizable: true,
+    resizable: true,
     webPreferences: {
       preload: join(__dirname, '../preload/preload.js'),
       sandbox: false,
+      webSecurity: false,
+      allowRunningInsecureContent: true,
+      nodeIntegration: false,
+      contextIsolation: true,
     },
   })
 
@@ -33,6 +39,10 @@ export function createAppWindow(): void {
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
+    // 在开发模式下自动打开开发者工具
+    if (!app.isPackaged) {
+      mainWindow.webContents.openDevTools()
+    }
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {

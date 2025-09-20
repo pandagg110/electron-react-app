@@ -1,11 +1,19 @@
 import { app, BrowserWindow } from 'electron'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { createAppWindow } from './app'
+import { setupCacheDirectory, configureChromiumFlags } from './cache-fix'
+
+// 配置 Chromium 标志以避免缓存问题
+configureChromiumFlags()
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
+  // 设置缓存目录并确保单实例
+  if (!setupCacheDirectory()) {
+    return // 如果已有实例在运行，退出
+  }
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron')
   // Create app window
