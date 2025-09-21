@@ -1,4 +1,4 @@
-import { BrowserWindow, shell, app } from 'electron'
+﻿import { BrowserWindow, shell, app } from 'electron'
 import { join } from 'path'
 import appIcon from '@/resources/build/icon.png?asset'
 import { registerResourcesProtocol } from './protocols'
@@ -6,21 +6,21 @@ import { registerWindowHandlers } from '@/lib/conveyor/handlers/window-handler'
 import { registerAppHandlers } from '@/lib/conveyor/handlers/app-handler'
 
 export function createAppWindow(): void {
-  // Register custom protocol for resources
+  // 注册自定义协议，统一加载静态资源
   registerResourcesProtocol()
 
-  // Create the main window.
+  // 创建主窗口，默认保持紧凑尺寸，方便贴边悬浮
   const mainWindow = new BrowserWindow({
-    width: 896,
-    height: 504,
-    minWidth: 480,
+    width: 720,
+    height: 480,
+    minWidth: 360,
     minHeight: 320,
     show: false,
     backgroundColor: '#0f172a',
     icon: appIcon,
     frame: false,
     titleBarStyle: 'hiddenInset',
-    title: '����ʮ����ָ�ӹ���',
+    title: '燕云十六声指挥工具',
     maximizable: true,
     resizable: true,
     webPreferences: {
@@ -33,13 +33,13 @@ export function createAppWindow(): void {
     },
   })
 
-  // Register IPC events for the main window.
+  // 注册主窗口 IPC 事件
   registerWindowHandlers(mainWindow)
   registerAppHandlers(app)
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
-    // 在开发模式下自动打开开发者工具
+    // 开发模式默认打开 DevTools 方便调试
     if (!app.isPackaged) {
       mainWindow.webContents.openDevTools()
     }
@@ -50,8 +50,7 @@ export function createAppWindow(): void {
     return { action: 'deny' }
   })
 
-  // HMR for renderer base on electron-vite cli.
-  // Load the remote URL for development or the local html file for production.
+  // 开发环境加载本地服务，生产环境加载打包后的 HTML
   if (!app.isPackaged && process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
