@@ -4,7 +4,7 @@ import { HomeScreen } from '@/app/components/battle/home-screen'
 import { CommanderScreen } from '@/app/components/battle/commander-screen'
 import { GroupScreen } from '@/app/components/battle/group-screen'
 import { JunglerScreen } from '@/app/components/battle/jungler-screen'
-import { MapPanel } from '@/app/components/map/map-panel'
+// import { MapPanel } from '@/app/components/map/map-panel'
 
 const Viewport = () => {
   const { profile } = useBattleContext()
@@ -36,11 +36,13 @@ const Viewport = () => {
       <main className="flex-1 overflow-auto">
         <div className={wrapperClass}>{content}</div>
       </main>
+      {/* Tactical map temporarily disabled.
       {showMapPanel ? (
         <div className="fixed bottom-4 right-4 z-40">
           <MapPanel />
         </div>
       ) : null}
+      */}
     </div>
   )
 }
