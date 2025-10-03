@@ -1,10 +1,11 @@
-﻿import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Button } from '@/app/components/ui/button'
 import { GROUP_ROLES, ROLE_CONFIG } from '@/app/constants/battle'
 import { useBattleContext } from '@/app/providers/battle-provider'
 import type { GroupRole, MemberSnapshot, Role } from '@/app/types/battle'
 import { cn } from '@/lib/utils'
 import { now as timeNow } from '@/app/utils/time'
+import { useMediaQuery } from '@/app/hooks/use-media-query'
 
 const GROUP_LABELS: Record<GroupRole, string> = {
   healer: '治疗',
@@ -18,45 +19,223 @@ const ROLE_RING_COLORS: Record<GroupRole, string> = {
   fan: '#38bdf8',
 }
 
+const COMPACT_MEDIA_QUERY = '(max-width: 120px)'
+
 const isGroupRole = (role: Role | null): role is GroupRole => !!role && GROUP_ROLES.includes(role as GroupRole)
 
-const formatStatus = (remaining: number) => {
+const formatStatusLabel = (remaining: number) => {
   if (remaining <= 0) return 'READY'
   if (remaining < 10) return `${remaining.toFixed(1)}s`
   return `${Math.ceil(remaining)}s`
 }
+
+const formatCountdown = (remaining: number) => (remaining <= 0 ? 'GO' : Math.ceil(remaining).toString())
 
 const SkillIcon = ({
   member,
   remaining,
   isNext,
   isMe,
+  variant = 'default',
 }: {
   member: MemberSnapshot
   remaining: number
   isNext: boolean
   isMe: boolean
+  variant?: 'default' | 'compact'
 }) => {
   const cooldownSeconds = member.cooldownSeconds || 0
   const progress = cooldownSeconds > 0 ? Math.min(1, Math.max(0, (cooldownSeconds - remaining) / cooldownSeconds)) : 1
   const angle = Math.round(progress * 360)
   const ringColor = isNext ? '#34d399' : ROLE_RING_COLORS[member.role as GroupRole] ?? '#94a3b8'
+  const isCompact = variant === 'compact'
+
+  const containerClass = isCompact ? 'h-12 w-12 rounded-lg' : 'h-14 w-14 rounded-xl'
+  const overlayClass = isCompact ? 'absolute inset-0 rounded-lg' : 'absolute inset-0 rounded-xl'
+  const trackClass = isCompact
+    ? 'absolute inset-[2px] rounded-[9px] border border-slate-800 bg-slate-950/90'
+    : 'absolute inset-[3px] rounded-[10px] border border-slate-800 bg-slate-950/90'
+  const faceClass = isCompact
+    ? 'absolute inset-[3px] rounded-[8px] bg-gradient-to-br from-slate-800/40 to-slate-900/80'
+    : 'absolute inset-1 rounded-lg bg-gradient-to-br from-slate-800/40 to-slate-900/80'
+  const countdownClass = isCompact ? 'text-[11px]' : 'text-xs'
+  const nextBadgeClass = isCompact
+    ? 'absolute -top-1 left-1/2 -translate-x-1/2 rounded-full bg-emerald-400 px-1.5 text-[9px] font-bold text-emerald-950'
+    : 'absolute -top-2 left-1/2 -translate-x-1/2 rounded-full bg-emerald-400 px-2 text-[10px] font-bold text-emerald-950'
+  const keyBadgeClass = isCompact
+    ? 'absolute -bottom-1.5 left-1/2 -translate-x-1/2 rounded-full border border-slate-700 bg-slate-900 px-1.5 text-[9px] tracking-widest text-slate-200'
+    : 'absolute -bottom-2 left-1/2 -translate-x-1/2 rounded-full border border-slate-700 bg-slate-900 px-2 text-[10px] tracking-widest text-slate-200'
 
   return (
-    <div className={cn('relative h-14 w-14 shrink-0 rounded-xl border border-slate-800 bg-slate-950', isMe && 'ring-1 ring-slate-500/60')}>
-      <div
-        className="absolute inset-0 rounded-xl"
-        style={{ backgroundImage: `conic-gradient(${ringColor} ${angle}deg, rgba(15, 23, 42, 0.8) ${angle}deg)` }}
-      />
-      <div className="absolute inset-[3px] rounded-[10px] border border-slate-800 bg-slate-950/90" />
-      <div className="absolute inset-1 flex items-center justify-center rounded-lg bg-gradient-to-br from-slate-800/40 to-slate-900/80 text-center text-xs font-semibold text-slate-100">
-        {remaining <= 0 ? 'GO' : Math.ceil(remaining)}
+    <div className={cn('relative shrink-0 border border-slate-800 bg-slate-950', containerClass, isMe && 'ring-1 ring-slate-500/60')}>
+      <div className={overlayClass} style={{ backgroundImage: `conic-gradient(${ringColor} ${angle}deg, rgba(15, 23, 42, 0.82) ${angle}deg)` }} />
+      <div className={trackClass} />
+      <div className={cn(faceClass, 'flex items-center justify-center text-center font-semibold text-slate-100')}>
+        <span className={countdownClass}>{remaining <= 0 ? 'GO' : Math.ceil(remaining)}</span>
       </div>
-      {isNext && <span className="absolute -top-2 left-1/2 -translate-x-1/2 rounded-full bg-emerald-500 px-2 text-[10px] font-bold text-emerald-950">NEXT</span>}
-      {member.keyBinding && (
-        <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 rounded-full border border-slate-700 bg-slate-900 px-2 text-[10px] tracking-widest text-slate-200">
-          {member.keyBinding.toUpperCase()}
+      {isNext && <span className={nextBadgeClass}>NEXT</span>}
+      {member.keyBinding && <span className={keyBadgeClass}>{member.keyBinding.toUpperCase()}</span>}
+    </div>
+  )
+}
+
+interface CompactGroupOverlayProps {
+  role: GroupRole
+  members: MemberSnapshot[]
+  me?: MemberSnapshot
+  nextCaster?: MemberSnapshot
+  tick: number
+  profileKeyBinding: string | null
+  isBinding: boolean
+  onBind: () => void
+  onCast: () => void
+  onReset: () => void
+  onBack: () => void
+}
+
+const CompactActionButton = ({
+  children,
+  onClick,
+  tone = 'default',
+  active = false,
+  title,
+}: {
+  children: ReactNode
+  onClick: () => void
+  tone?: 'default' | 'warn' | 'danger'
+  active?: boolean
+  title?: string
+}) => {
+  const toneStyles: Record<'default' | 'warn' | 'danger', string> = {
+    default: 'border-slate-700 bg-slate-900/70 text-slate-100 hover:bg-slate-800/80',
+    warn: 'border-amber-500/70 bg-amber-900/60 text-amber-100 hover:bg-amber-800/70',
+    danger: 'border-rose-600/80 bg-rose-900/70 text-rose-100 hover:bg-rose-800/80',
+  }
+
+  return (
+    <button
+      type="button"
+      title={title}
+      className={cn(
+        'compact-overlay__action focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-400',
+        toneStyles[tone],
+        active && 'border-emerald-400 text-emerald-100 shadow-[0_0_6px_rgba(16,185,129,0.45)]'
+      )}
+      style={{ WebkitAppRegion: 'no-drag' }}
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  )
+}
+
+const CompactMemberItem = ({
+  member,
+  remaining,
+  isNext,
+  isMe,
+  index,
+}: {
+  member: MemberSnapshot
+  remaining: number
+  isNext: boolean
+  isMe: boolean
+  index: number
+}) => (
+  <div
+    className={cn(
+      'compact-overlay__member',
+      isNext && 'compact-overlay__member--next',
+      isMe && 'compact-overlay__member--self'
+    )}
+  >
+    <div className="compact-overlay__member-rank">#{index + 1}</div>
+    <div className="compact-overlay__member-icon">
+      <SkillIcon member={member} remaining={remaining} isNext={isNext} isMe={isMe} variant="compact" />
+    </div>
+    <div className="compact-overlay__member-name" title={member.name}>
+      {member.name || `成员${index + 1}`}
+    </div>
+    <div className="compact-overlay__member-countdown">{formatCountdown(remaining)}</div>
+  </div>
+)
+
+const CompactGroupOverlay = ({
+  role,
+  members,
+  me,
+  nextCaster,
+  tick,
+  profileKeyBinding,
+  isBinding,
+  onBind,
+  onCast,
+  onReset,
+  onBack,
+}: CompactGroupOverlayProps) => {
+  const nextName = nextCaster ? nextCaster.name : '等待排队'
+  const isMeNext = nextCaster?.profileId === me?.profileId
+
+  return (
+    <div className="compact-overlay">
+      <header className="compact-overlay__header" style={{ WebkitAppRegion: 'no-drag' }}>
+        <button type="button" aria-label="返回角色" className="compact-overlay__back" onClick={onBack}>
+          {'<'}
+        </button>
+        <div className="compact-overlay__title">
+          <span className="compact-overlay__role">{GROUP_LABELS[role]}</span>
+          <span className="compact-overlay__key" title="当前绑定键位">
+            {profileKeyBinding ? profileKeyBinding.toUpperCase() : '--'}
+          </span>
+        </div>
+      </header>
+
+      <section className="compact-overlay__next" style={{ WebkitAppRegion: 'no-drag' }}>
+        <span className="compact-overlay__next-label">下一位</span>
+        <span className={cn('compact-overlay__next-name', isMeNext && 'compact-overlay__next-name--self')}>
+          {nextName}
         </span>
+      </section>
+
+      <section className="compact-overlay__members" style={{ WebkitAppRegion: 'no-drag' }}>
+        {members.length > 0 ? (
+          members.map((member, index) => {
+            const remaining = Math.max(0, (member.readyAt - tick) / 1000)
+            const isNext = nextCaster?.profileId === member.profileId
+            const isMe = member.profileId === me?.profileId
+
+            return (
+              <CompactMemberItem
+                key={member.profileId}
+                member={member}
+                remaining={remaining}
+                isNext={isNext}
+                isMe={isMe}
+                index={index}
+              />
+            )
+          })
+        ) : (
+          <div className="compact-overlay__empty">指挥尚未添加该职业成员</div>
+        )}
+      </section>
+
+      <section className="compact-overlay__actions" style={{ WebkitAppRegion: 'no-drag' }}>
+        <CompactActionButton onClick={onBind} active={isBinding} title="绑定大招按键（5 秒内按键）">
+          {isBinding ? '按键中...' : '绑定键'}
+        </CompactActionButton>
+        <CompactActionButton onClick={onCast} tone="warn" title="大招已释放">
+          已释放
+        </CompactActionButton>
+        <CompactActionButton onClick={onReset} tone="danger" title="误触或重置冷却">
+          重置
+        </CompactActionButton>
+      </section>
+
+      {me && (
+        <footer className="compact-overlay__footer" style={{ WebkitAppRegion: 'no-drag' }}>
+          上次同步：{new Date(me.lastEventAt).toLocaleTimeString()}
+        </footer>
       )}
     </div>
   )
@@ -68,6 +247,7 @@ export const GroupScreen = () => {
   const [isBinding, setIsBinding] = useState(false)
   const role = profile.role
   const handleBack = () => selectRole(null)
+  const isCompact = useMediaQuery(COMPACT_MEDIA_QUERY)
 
   useEffect(() => {
     const id = window.setInterval(() => setTick(timeNow()), 1000)
@@ -106,19 +286,45 @@ export const GroupScreen = () => {
 
   if (!isGroupRole(role)) {
     return (
-      <div className="flex min-h-full flex-1 items-center justify-center text-sm text-slate-300">
+      <div className="flex min-h-full flex-1 items-center justify-center px-2 text-center text-sm text-slate-300">
         当前角色无需技能排班，可关注指挥面板的全局提醒。
       </div>
     )
   }
 
   const groupState = state.groups[role]
-  const members = groupState.order
-    .map((id) => state.members[id])
-    .filter((member): member is MemberSnapshot => Boolean(member))
+  const members = useMemo(
+    () =>
+      groupState.order
+        .map((id) => state.members[id])
+        .filter((member): member is MemberSnapshot => Boolean(member)),
+    [groupState.order, state.members]
+  )
 
   const me = state.members[profile.id]
   const nextCaster = members.find((member) => member.readyAt <= tick) ?? members[0]
+
+  const handleBindRequest = () => setIsBinding(true)
+  const handleCast = () => triggerCooldown(profile.id, 'cast')
+  const handleReset = () => triggerCooldown(profile.id, 'reset')
+
+  if (isCompact) {
+    return (
+      <CompactGroupOverlay
+        role={role}
+        members={members}
+        me={me}
+        nextCaster={nextCaster}
+        tick={tick}
+        profileKeyBinding={profile.keyBinding ?? null}
+        isBinding={isBinding}
+        onBind={handleBindRequest}
+        onCast={handleCast}
+        onReset={handleReset}
+        onBack={handleBack}
+      />
+    )
+  }
 
   return (
     <div className="flex min-h-full flex-1 flex-col gap-3 text-slate-100">
@@ -149,13 +355,13 @@ export const GroupScreen = () => {
             指挥调整顺序后会自动同步，保持窗口在前台以确保按键监听。
           </p>
           <div className="grid grid-cols-2 gap-2">
-            <Button size="sm" variant={isBinding ? 'secondary' : 'outline'} onClick={() => setIsBinding(true)}>
+            <Button size="sm" variant={isBinding ? 'secondary' : 'outline'} onClick={handleBindRequest}>
               {isBinding ? '按键完成绑定' : '绑定大招按键'}
             </Button>
-            <Button size="sm" variant="default" onClick={() => triggerCooldown(profile.id, 'cast')}>
+            <Button size="sm" variant="default" onClick={handleCast}>
               大招已释放
             </Button>
-            <Button size="sm" variant="destructive" onClick={() => triggerCooldown(profile.id, 'reset')}>
+            <Button size="sm" variant="destructive" onClick={handleReset}>
               误触 / 重置CD
             </Button>
           </div>
@@ -186,7 +392,7 @@ export const GroupScreen = () => {
                 <div className="flex items-center justify-between text-[11px] text-slate-400">
                   <span>{ROLE_CONFIG[member.role].label}</span>
                   <span className={cn('font-mono', remaining <= 0 ? 'text-emerald-300' : 'text-slate-300')}>
-                    {formatStatus(remaining)}
+                    {formatStatusLabel(remaining)}
                   </span>
                 </div>
               </div>
@@ -203,9 +409,7 @@ export const GroupScreen = () => {
       {me && (
         <section className="rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-[11px] text-slate-400">
           <p>· 保持窗口聚焦才能监听快捷键，切换回游戏后请快速 alt+tab 返回确认。</p>
-          <p>
-            · 最近一次同步：{new Date(me.lastEventAt).toLocaleTimeString()}，若顺序异常请立即提醒指挥。
-          </p>
+          <p>· 最近一次同步：{new Date(me.lastEventAt).toLocaleTimeString()}，若顺序异常请立即提醒指挥。</p>
         </section>
       )}
     </div>

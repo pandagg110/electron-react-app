@@ -13,6 +13,12 @@ interface WindowContextProps {
 
 const WindowContext = createContext<WindowContextProps | undefined>(undefined)
 
+interface WindowContextProviderProps {
+  children: React.ReactNode
+  titlebar?: TitlebarProps
+  showTitlebar?: boolean
+}
+
 export const WindowContextProvider = ({
   children,
   titlebar = {
@@ -21,27 +27,41 @@ export const WindowContextProvider = ({
     titleCentered: false,
     menuItems: [],
   },
-}: {
-  children: React.ReactNode
-  titlebar?: TitlebarProps
-}) => {
+  showTitlebar = true,
+}: WindowContextProviderProps) => {
   const [initProps, setInitProps] = useState<WindowInitProps>()
   const { windowInit } = useConveyor('window')
 
   useEffect(() => {
-    windowInit().then(setInitProps)
+    let isMounted = true
 
-    // Add class to parent element
-    const parent = document.querySelector('.window-content')?.parentElement
-    parent?.classList.add('window-frame')
-  }, [windowInit])
+    windowInit().then((props) => {
+      if (isMounted) {
+        setInitProps(props)
+      }
+    })
+
+    const content = document.querySelector('.window-content')
+    const parent = content?.parentElement
+
+    if (parent) {
+      parent.classList.add('window-frame')
+      parent.classList.toggle('window-frame--frameless', !showTitlebar)
+    }
+
+    return () => {
+      isMounted = false
+    }
+  }, [windowInit, showTitlebar])
 
   return (
     <WindowContext.Provider value={{ titlebar, window: initProps }}>
-      <TitlebarContextProvider>
-        <Titlebar />
-      </TitlebarContextProvider>
-      <div className="window-content">{children}</div>
+      {showTitlebar ? (
+        <TitlebarContextProvider>
+          <Titlebar />
+        </TitlebarContextProvider>
+      ) : null}
+      <div className={`window-content${showTitlebar ? '' : ' frameless-window'}`}>{children}</div>
     </WindowContext.Provider>
   )
 }
@@ -53,3 +73,4 @@ export const useWindowContext = () => {
   }
   return context
 }
+

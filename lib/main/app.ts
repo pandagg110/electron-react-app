@@ -1,4 +1,4 @@
-﻿import { BrowserWindow, shell, app } from 'electron'
+import { BrowserWindow, shell, app } from 'electron'
 import { join } from 'path'
 import appIcon from '@/resources/build/icon.png?asset'
 import { registerResourcesProtocol } from './protocols'
@@ -9,19 +9,19 @@ export function createAppWindow(): void {
   // 注册自定义协议，统一加载静态资源
   registerResourcesProtocol()
 
-  // 创建主窗口，默认保持紧凑尺寸，方便贴边悬浮
+  // 创建主窗口，默认保持极窄尺寸，方便贴边悬浮
   const mainWindow = new BrowserWindow({
-    width: 720,
-    height: 480,
-    minWidth: 360,
-    minHeight: 320,
+    width: 60,
+    height: 540,
+    minWidth: 60,
+    minHeight: 300,
     show: false,
     backgroundColor: '#0f172a',
     icon: appIcon,
     frame: false,
     titleBarStyle: 'hiddenInset',
     title: '燕云十六声指挥工具',
-    maximizable: true,
+    maximizable: false,
     resizable: true,
     webPreferences: {
       preload: join(__dirname, '../preload/preload.js'),
