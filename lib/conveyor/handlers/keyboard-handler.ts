@@ -36,6 +36,7 @@ export const registerKeyboardHandlers = (window: BrowserWindow) => {
 
     const success = globalShortcut.register(normalized, () => {
       if (!window.isDestroyed()) {
+        console.log('[keyboard] shortcut fired', normalized)
         window.webContents.send('keyboard-shortcut', { key: normalized })
       }
     })

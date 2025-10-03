@@ -211,7 +211,7 @@ const CompactGroupOverlay = ({
       </header>
 
       <section className="compact-overlay__next" style={{ WebkitAppRegion: 'no-drag' }}>
-        <span className="compact-overlay__next-label">下一?/span>
+        <span className="compact-overlay__next-label">下一位</span>
         <span className={cn('compact-overlay__next-name', isMeNext && 'compact-overlay__next-name--self')}>
           {nextName}
         </span>
@@ -221,7 +221,7 @@ const CompactGroupOverlay = ({
           className="rounded-md border border-emerald-500/80 bg-emerald-500/15 px-3 py-2 text-xs font-semibold text-emerald-100"
           style={{ WebkitAppRegion: 'no-drag' }}
         >
-          轮到你释放了！{profileKeyBinding ? `?${profileKeyBinding.toUpperCase()}` : '请先绑定快捷?}
+          轮到你释放了！{profileKeyBinding ? `（${profileKeyBinding.toUpperCase()}）` : '请先绑定快捷键'}
         </div>
       )}
 
@@ -245,18 +245,18 @@ const CompactGroupOverlay = ({
             )
           })
         ) : (
-          <div className="compact-overlay__empty">指挥尚未添加该职业成?/div>
+          <div className="compact-overlay__empty">指挥尚未添加该职业成员</div>
         )}
       </section>
 
       <section className="compact-overlay__actions" style={{ WebkitAppRegion: 'no-drag' }}>
-        <CompactActionButton onClick={onBind} active={isBinding} title="绑定大招按键? 秒内按键">
-          {isBinding ? '按键监听? : '绑定按键'}
+        <CompactActionButton onClick={onBind} active={isBinding} title="绑定大招按键（请在 5 秒内按键）">
+          {isBinding ? '按键监听中' : '绑定按键'}
         </CompactActionButton>
-        <CompactActionButton onClick={onCast} tone="warn" title="大招已释?>
+        <CompactActionButton onClick={onCast} tone="warn" title="大招已释放">
           宣告释放
         </CompactActionButton>
-        <CompactActionButton onClick={onReset} tone="danger" title="误触或重置冷?>
+        <CompactActionButton onClick={onReset} tone="danger" title="误触或重置冷却">
           重置冷却
         </CompactActionButton>
       </section>
@@ -412,13 +412,13 @@ export const GroupScreen = () => {
             <div className="text-right text-[10px] leading-4 text-slate-400">
               <span className="block">当前键位</span>
               <span className="rounded border border-slate-700 bg-slate-950 px-2 py-[2px] text-xs font-semibold text-slate-100">
-                {profile.keyBinding ? profile.keyBinding.toUpperCase() : '未设?}
+                {profile.keyBinding ? profile.keyBinding.toUpperCase() : '未设置'}
               </span>
             </div>
           </div>
           {isNextMe && (
             <div className="rounded-md border border-emerald-500/80 bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-100 shadow-emerald-500/30">
-              轮到你释放了！{profile.keyBinding ? `?${profile.keyBinding.toUpperCase()}` : '请先绑定快捷?}
+              轮到你释放了！{profile.keyBinding ? `（${profile.keyBinding.toUpperCase()}）` : '请先绑定快捷键'}
             </div>
           )}
         </div>
@@ -460,7 +460,7 @@ export const GroupScreen = () => {
           })
         ) : (
           <div className="flex h-32 items-center justify-center rounded-lg border border-dashed border-slate-700/70 text-sm text-slate-400">
-            指挥尚未添加该职业成?
+            指挥尚未添加该职业成员
           </div>
         )}
       </div>
@@ -470,7 +470,7 @@ export const GroupScreen = () => {
           <p className="text-xs font-semibold text-slate-400">操作指令</p>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
             <Button size="sm" variant={isBinding ? 'secondary' : 'outline'} onClick={handleBindRequest}>
-              {isBinding ? '按键监听? : '绑定大招按键'}
+              {isBinding ? '按键监听中' : '绑定大招按键'}
             </Button>
             <Button size="sm" variant="default" onClick={handleCast}>
               宣告大招释放

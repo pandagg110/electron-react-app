@@ -7,10 +7,10 @@ import { registerKeyboardHandlers } from '@/lib/conveyor/handlers/keyboard-handl
 import { registerAppHandlers } from '@/lib/conveyor/handlers/app-handler'
 
 export function createAppWindow(): void {
-  // 注册自定义协议，统一加载静态资�?
+  // Ensure static assets resolve correctly across environments
   registerResourcesProtocol()
 
-  // 创建主窗口，默认保持极窄尺寸，方便贴边悬�?
+  // Create the main window with a narrow default width so it can stay docked
   const mainWindow = new BrowserWindow({
     width: 60,
     height: 540,
@@ -21,7 +21,7 @@ export function createAppWindow(): void {
     icon: appIcon,
     frame: false,
     titleBarStyle: 'hiddenInset',
-    title: '燕云十六声指挥工�?,
+    title: '燕云十六声指挥工具',
     maximizable: false,
     resizable: true,
     webPreferences: {
@@ -34,14 +34,13 @@ export function createAppWindow(): void {
     },
   })
 
-  // 注册主窗�?IPC 事件
+  // Wire IPC handlers that depend on the window instance
   registerWindowHandlers(mainWindow)
   registerKeyboardHandlers(mainWindow)
   registerAppHandlers(app)
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
-    // 开发模式默认打开 DevTools 方便调试
     if (!app.isPackaged) {
       mainWindow.webContents.openDevTools()
     }
@@ -52,12 +51,10 @@ export function createAppWindow(): void {
     return { action: 'deny' }
   })
 
-  // 开发环境加载本地服务，生产环境加载打包后的 HTML
   if (!app.isPackaged && process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
+
 }
-
-
