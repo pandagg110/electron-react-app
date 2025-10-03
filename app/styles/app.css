@@ -27,6 +27,26 @@ body,
   overflow: hidden;
 }
 
+.app-overlay--pinned {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  border-top: none;
+  padding-top: max(env(safe-area-inset-top, 0), 4px);
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.45);
+}
+
+.overlay-pinned .frameless-window .app-overlay {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+@media (max-width: 640px) {
+  .app-overlay--pinned {
+    border-radius: 0;
+    padding-top: max(env(safe-area-inset-top, 0), 2px);
+  }
+}
+
 .drag-handle {
   cursor: move;
 }
@@ -237,3 +257,4 @@ body,
 .compact-overlay :focus-visible {
   outline: none;
 }
+

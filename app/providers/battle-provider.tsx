@@ -12,6 +12,7 @@ import type { RealtimeChannel } from '@supabase/supabase-js'
 import { getSupabaseClient } from '@/app/config/supabase-client'
 import { env, isSupabaseConfigured } from '@/app/config/env'
 import { STORAGE_KEYS, loadJson, saveJson } from '@/app/utils/storage'
+import { useConveyor } from '@/app/hooks/use-conveyor'
 import { createId } from '@/app/utils/id'
 import {
   battleReducer,
@@ -38,6 +39,7 @@ interface BattleContextValue {
   connection: ConnectionState
   sessionId: string
   supabaseReady: boolean
+  globalShortcutReady: boolean
   updateName: (name: string) => void
   selectRole: (role: Role | null) => void
   setKeyBinding: (key: string | null) => void
@@ -68,10 +70,12 @@ const loadProfile = (): Profile => {
 export const BattleProvider = ({ children }: { children: React.ReactNode }) => {
   const supabaseReady = isSupabaseConfigured()
   const supabase = useMemo(() => (supabaseReady ? getSupabaseClient() : null), [supabaseReady])
+  const keyboard = useConveyor('keyboard')
 
   const [profile, setProfile] = useState<Profile>(() => loadProfile())
   const [sessionId] = useState(() => env.defaultSessionId)
   const [state, dispatch] = useReducer(battleReducer, undefined, createInitialBattleState)
+  const [globalShortcutReady, setGlobalShortcutReady] = useState(false)
   const stateRef = useRef<BattleState>(state)
   const channelRef = useRef<RealtimeChannel | null>(null)
   const lastSelfSignatureRef = useRef<string | null>(null)
@@ -484,6 +488,65 @@ export const BattleProvider = ({ children }: { children: React.ReactNode }) => {
     [buildPayload, dispatch, sendBroadcast]
   )
 
+
+  useEffect(() => {
+    if (!keyboard || typeof keyboard.registerBinding !== 'function') {
+      setGlobalShortcutReady(false)
+      return undefined
+    }
+
+    let disposed = false
+
+    const updateBinding = async () => {
+      try {
+        const result = await keyboard.registerBinding(profile.keyBinding ?? null)
+        if (disposed) return
+        const enabled = Boolean(profile.keyBinding) && Boolean(result?.success) && Boolean(result?.key)
+        setGlobalShortcutReady(enabled)
+        if (!enabled && profile.keyBinding) {
+          console.warn('Global shortcut registration failed for key', profile.keyBinding)
+        }
+      } catch (error) {
+        if (disposed) return
+        setGlobalShortcutReady(false)
+        if (profile.keyBinding) {
+          console.warn('Failed to register global shortcut', error)
+        }
+      }
+    }
+
+    void updateBinding()
+
+    return () => {
+      disposed = true
+      setGlobalShortcutReady(false)
+      if (typeof keyboard.registerBinding === 'function') {
+        keyboard.registerBinding(null).catch(() => undefined)
+      }
+    }
+  }, [keyboard, profile.keyBinding])
+
+  useEffect(() => {
+    if (!profile.keyBinding) return undefined
+    if (!keyboard || typeof keyboard.onShortcut !== 'function') return undefined
+
+    const expected =
+      profile.keyBinding.length === 1 ? profile.keyBinding.toUpperCase() : profile.keyBinding
+
+    const unsubscribe = keyboard.onShortcut(({ key }) => {
+      const normalized = key.length === 1 ? key.toUpperCase() : key
+      if (normalized === expected) {
+        triggerCooldown(profile.id, 'cast')
+      }
+    })
+
+    return () => {
+      if (typeof unsubscribe === 'function') {
+        unsubscribe()
+      }
+    }
+  }, [keyboard, profile.id, profile.keyBinding, triggerCooldown])
+
   const reorderGroup = useCallback(
     (group: GroupRole, order: string[]) => {
       const issuedAt = now()
@@ -566,6 +629,7 @@ export const BattleProvider = ({ children }: { children: React.ReactNode }) => {
       connection,
       sessionId,
       supabaseReady,
+      globalShortcutReady,
       updateName,
       selectRole,
       setKeyBinding,
@@ -582,6 +646,7 @@ export const BattleProvider = ({ children }: { children: React.ReactNode }) => {
       connection,
       sessionId,
       supabaseReady,
+      globalShortcutReady,
       updateName,
       selectRole,
       setKeyBinding,

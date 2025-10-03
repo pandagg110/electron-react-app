@@ -1,6 +1,7 @@
-﻿const STORAGE_KEYS = {
+const STORAGE_KEYS = {
   profile: 'battle.profile',
   mapPanel: 'battle.mapPanel',
+  overlay: 'battle.overlay',
 } as const
 
 export const loadJson = <T>(key: string, fallback: T): T => {

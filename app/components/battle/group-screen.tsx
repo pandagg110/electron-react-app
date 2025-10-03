@@ -134,19 +134,22 @@ const CompactMemberItem = ({
   remaining,
   isNext,
   isMe,
+  isMyTurn,
   index,
 }: {
   member: MemberSnapshot
   remaining: number
   isNext: boolean
   isMe: boolean
+  isMyTurn: boolean
   index: number
 }) => (
   <div
     className={cn(
       'compact-overlay__member',
       isNext && 'compact-overlay__member--next',
-      isMe && 'compact-overlay__member--self'
+      isMe && 'compact-overlay__member--self',
+      isMyTurn && 'animate-pulse ring-1 ring-emerald-400/80'
     )}
   >
     <div className="compact-overlay__member-rank">#{index + 1}</div>
@@ -176,6 +179,22 @@ const CompactGroupOverlay = ({
   const nextName = nextCaster ? nextCaster.name : '等待排队'
   const isMeNext = nextCaster?.profileId === me?.profileId
 
+  const orderedMembers = useMemo(
+    () =>
+      members
+        .map((member, index) => ({ member, index }))
+        .sort((a, b) => {
+          const remainingA = Math.max(0, a.member.readyAt - tick)
+          const remainingB = Math.max(0, b.member.readyAt - tick)
+          if (remainingA === remainingB) {
+            return a.index - b.index
+          }
+          return remainingA - remainingB
+        })
+        .map((entry) => entry.member),
+    [members, tick]
+  )
+
   return (
     <div className="compact-overlay">
       <header className="compact-overlay__header" style={{ WebkitAppRegion: 'no-drag' }}>
@@ -184,7 +203,7 @@ const CompactGroupOverlay = ({
         </button>
         <div className="compact-overlay__title">
           <span className="compact-overlay__role">{GROUP_LABELS[role]}</span>
-          <span className="compact-overlay__key" title="当前绑定键位">
+          <span className="compact-overlay__key" title="当前绑定按键">
             {profileKeyBinding ? profileKeyBinding.toUpperCase() : '--'}
           </span>
         </div>
@@ -196,10 +215,18 @@ const CompactGroupOverlay = ({
           {nextName}
         </span>
       </section>
+      {isMeNext && (
+        <div
+          className="rounded-md border border-emerald-500/80 bg-emerald-500/15 px-3 py-2 text-xs font-semibold text-emerald-100"
+          style={{ WebkitAppRegion: 'no-drag' }}
+        >
+          轮到你释放了！{profileKeyBinding ? `按 ${profileKeyBinding.toUpperCase()}` : '请先绑定快捷键'}
+        </div>
+      )}
 
       <section className="compact-overlay__members" style={{ WebkitAppRegion: 'no-drag' }}>
-        {members.length > 0 ? (
-          members.map((member, index) => {
+        {orderedMembers.length > 0 ? (
+          orderedMembers.map((member, index) => {
             const remaining = Math.max(0, (member.readyAt - tick) / 1000)
             const isNext = nextCaster?.profileId === member.profileId
             const isMe = member.profileId === me?.profileId
@@ -211,6 +238,7 @@ const CompactGroupOverlay = ({
                 remaining={remaining}
                 isNext={isNext}
                 isMe={isMe}
+                isMyTurn={isNext && isMe}
                 index={index}
               />
             )
@@ -221,28 +249,22 @@ const CompactGroupOverlay = ({
       </section>
 
       <section className="compact-overlay__actions" style={{ WebkitAppRegion: 'no-drag' }}>
-        <CompactActionButton onClick={onBind} active={isBinding} title="绑定大招按键（5 秒内按键）">
-          {isBinding ? '按键中...' : '绑定键'}
+        <CompactActionButton onClick={onBind} active={isBinding} title="绑定大招按键，5 秒内按键">
+          {isBinding ? '按键监听中…' : '绑定按键'}
         </CompactActionButton>
         <CompactActionButton onClick={onCast} tone="warn" title="大招已释放">
-          已释放
+          宣告释放
         </CompactActionButton>
         <CompactActionButton onClick={onReset} tone="danger" title="误触或重置冷却">
-          重置
+          重置冷却
         </CompactActionButton>
       </section>
-
-      {me && (
-        <footer className="compact-overlay__footer" style={{ WebkitAppRegion: 'no-drag' }}>
-          上次同步：{new Date(me.lastEventAt).toLocaleTimeString()}
-        </footer>
-      )}
     </div>
   )
 }
 
 export const GroupScreen = () => {
-  const { profile, state, triggerCooldown, setKeyBinding, selectRole } = useBattleContext()
+  const { profile, state, triggerCooldown, setKeyBinding, selectRole, globalShortcutReady } = useBattleContext()
   const [tick, setTick] = useState(() => timeNow())
   const [isBinding, setIsBinding] = useState(false)
   const role = profile.role
@@ -269,6 +291,7 @@ export const GroupScreen = () => {
 
   useEffect(() => {
     if (!profile.keyBinding) return
+    if (globalShortcutReady) return
     const handler = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
@@ -282,7 +305,7 @@ export const GroupScreen = () => {
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [profile.id, profile.keyBinding, triggerCooldown])
+  }, [profile.id, profile.keyBinding, triggerCooldown, globalShortcutReady])
 
   if (!isGroupRole(role)) {
     return (
@@ -302,7 +325,22 @@ export const GroupScreen = () => {
   )
 
   const me = state.members[profile.id]
-  const nextCaster = members.find((member) => member.readyAt <= tick) ?? members[0]
+
+  const orderedMembers = useMemo(() => {
+    const ranked = members.map((member, index) => ({ member, index }))
+    ranked.sort((a, b) => {
+      const remainingA = Math.max(0, a.member.readyAt - tick)
+      const remainingB = Math.max(0, b.member.readyAt - tick)
+      if (remainingA === remainingB) {
+        return a.index - b.index
+      }
+      return remainingA - remainingB
+    })
+    return ranked.map((entry) => entry.member)
+  }, [members, tick])
+
+  const nextCaster = orderedMembers.find((member) => member.readyAt <= tick) ?? orderedMembers[0]
+  const isNextMe = nextCaster?.profileId === profile.id
 
   const handleBindRequest = () => setIsBinding(true)
   const handleCast = () => triggerCooldown(profile.id, 'cast')
@@ -312,7 +350,7 @@ export const GroupScreen = () => {
     return (
       <CompactGroupOverlay
         role={role}
-        members={members}
+        members={orderedMembers}
         me={me}
         nextCaster={nextCaster}
         tick={tick}
@@ -335,8 +373,8 @@ export const GroupScreen = () => {
         <span className="text-[11px] uppercase tracking-[0.4em] text-slate-500">{GROUP_LABELS[role]}</span>
       </div>
 
-      <section className="rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 shadow-sm">
-        <div className="flex flex-col gap-2">
+      <section className="rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-3 shadow-sm">
+        <div className="flex flex-col gap-3">
           <div className="flex items-start justify-between gap-2">
             <div>
               <p className="text-[11px] uppercase tracking-[0.4em] text-slate-400">轮转信息</p>
@@ -351,67 +389,72 @@ export const GroupScreen = () => {
               </span>
             </div>
           </div>
-          <p className="text-xs text-slate-400">
-            指挥调整顺序后会自动同步，保持窗口在前台以确保按键监听。
-          </p>
-          <div className="grid grid-cols-2 gap-2">
-            <Button size="sm" variant={isBinding ? 'secondary' : 'outline'} onClick={handleBindRequest}>
-              {isBinding ? '按键完成绑定' : '绑定大招按键'}
-            </Button>
-            <Button size="sm" variant="default" onClick={handleCast}>
-              大招已释放
-            </Button>
-            <Button size="sm" variant="destructive" onClick={handleReset}>
-              误触 / 重置CD
-            </Button>
-          </div>
+          {isNextMe && (
+            <div className="rounded-md border border-emerald-500/80 bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-100 shadow-emerald-500/30">
+              轮到你释放了！{profile.keyBinding ? `按 ${profile.keyBinding.toUpperCase()}` : '请先绑定快捷键'}
+            </div>
+          )}
         </div>
       </section>
 
       <div className="flex flex-1 flex-col gap-2 overflow-y-auto pb-1">
-        {members.map((member, index) => {
-          const remaining = Math.max(0, (member.readyAt - tick) / 1000)
-          const isNext = nextCaster?.profileId === member.profileId
-          const isMe = member.profileId === profile.id
+        {orderedMembers.length > 0 ? (
+          orderedMembers.map((member, index) => {
+            const remaining = Math.max(0, (member.readyAt - tick) / 1000)
+            const isNext = nextCaster?.profileId === member.profileId
+            const isMe = member.profileId === profile.id
+            const isMyTurn = isNext && isMe
 
-          return (
-            <div
-              key={member.profileId}
-              className={cn(
-                'flex items-center gap-3 rounded-lg border border-slate-800 bg-slate-950/70 px-3 py-2 shadow-sm transition',
-                isNext && 'border-emerald-400/70 shadow-emerald-500/10',
-                isMe && 'ring-1 ring-slate-500/60'
-              )}
-            >
-              <SkillIcon member={member} remaining={remaining} isNext={isNext} isMe={isMe} />
-              <div className="flex min-w-0 flex-1 flex-col">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="truncate text-sm font-semibold text-slate-100">{member.name}</span>
-                  <span className="text-xs font-mono text-slate-400">#{index + 1}</span>
-                </div>
-                <div className="flex items-center justify-between text-[11px] text-slate-400">
-                  <span>{ROLE_CONFIG[member.role].label}</span>
-                  <span className={cn('font-mono', remaining <= 0 ? 'text-emerald-300' : 'text-slate-300')}>
-                    {formatStatusLabel(remaining)}
-                  </span>
+            return (
+              <div
+                key={member.profileId}
+                className={cn(
+                  'flex items-center gap-3 rounded-lg border border-slate-800 bg-slate-950/70 px-3 py-2 shadow-sm transition',
+                  isNext && 'border-emerald-400/70 shadow-emerald-500/10',
+                  isMe && 'ring-1 ring-slate-500/60',
+                  isMyTurn && 'animate-pulse border-emerald-500/80 shadow-emerald-500/20'
+                )}
+              >
+                <SkillIcon member={member} remaining={remaining} isNext={isNext} isMe={isMe} />
+                <div className="flex min-w-0 flex-1 flex-col">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="truncate text-sm font-semibold text-slate-100">{member.name}</span>
+                    <span className="text-xs font-mono text-slate-400">#{index + 1}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] text-slate-400">
+                    <span>{ROLE_CONFIG[member.role].label}</span>
+                    <span className={cn('font-mono', remaining <= 0 ? 'text-emerald-300' : 'text-slate-300')}>
+                      {formatStatusLabel(remaining)}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-          )
-        })}
-        {members.length === 0 && (
+            )
+          })
+        ) : (
           <div className="flex h-32 items-center justify-center rounded-lg border border-dashed border-slate-700/70 text-sm text-slate-400">
             指挥尚未添加该职业成员
           </div>
         )}
       </div>
 
-      {me && (
-        <section className="rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-[11px] text-slate-400">
-          <p>· 保持窗口聚焦才能监听快捷键，切换回游戏后请快速 alt+tab 返回确认。</p>
-          <p>· 最近一次同步：{new Date(me.lastEventAt).toLocaleTimeString()}，若顺序异常请立即提醒指挥。</p>
-        </section>
-      )}
+      <section className="rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-3 shadow-sm" style={{ WebkitAppRegion: 'no-drag' }}>
+        <div className="flex flex-col gap-2">
+          <p className="text-xs font-semibold text-slate-400">操作指令</p>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <Button size="sm" variant={isBinding ? 'secondary' : 'outline'} onClick={handleBindRequest}>
+              {isBinding ? '按键监听中…' : '绑定大招按键'}
+            </Button>
+            <Button size="sm" variant="default" onClick={handleCast}>
+              宣告大招释放
+            </Button>
+            <Button size="sm" variant="destructive" onClick={handleReset}>
+              误触 / 重置冷却
+            </Button>
+          </div>
+        </div>
+      </section>
+
     </div>
   )
 }

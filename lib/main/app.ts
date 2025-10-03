@@ -3,13 +3,14 @@ import { join } from 'path'
 import appIcon from '@/resources/build/icon.png?asset'
 import { registerResourcesProtocol } from './protocols'
 import { registerWindowHandlers } from '@/lib/conveyor/handlers/window-handler'
+import { registerKeyboardHandlers } from '@/lib/conveyor/handlers/keyboard-handler'
 import { registerAppHandlers } from '@/lib/conveyor/handlers/app-handler'
 
 export function createAppWindow(): void {
-  // 注册自定义协议，统一加载静态资源
+  // 注册自定义协议，统一加载静态资�?
   registerResourcesProtocol()
 
-  // 创建主窗口，默认保持极窄尺寸，方便贴边悬浮
+  // 创建主窗口，默认保持极窄尺寸，方便贴边悬�?
   const mainWindow = new BrowserWindow({
     width: 60,
     height: 540,
@@ -20,7 +21,7 @@ export function createAppWindow(): void {
     icon: appIcon,
     frame: false,
     titleBarStyle: 'hiddenInset',
-    title: '燕云十六声指挥工具',
+    title: '燕云十六声指挥工�?,
     maximizable: false,
     resizable: true,
     webPreferences: {
@@ -33,8 +34,9 @@ export function createAppWindow(): void {
     },
   })
 
-  // 注册主窗口 IPC 事件
+  // 注册主窗�?IPC 事件
   registerWindowHandlers(mainWindow)
+  registerKeyboardHandlers(mainWindow)
   registerAppHandlers(app)
 
   mainWindow.on('ready-to-show', () => {
@@ -57,3 +59,5 @@ export function createAppWindow(): void {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
 }
+
+

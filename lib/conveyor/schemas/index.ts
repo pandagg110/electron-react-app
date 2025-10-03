@@ -1,11 +1,13 @@
 import { z } from 'zod'
 import { windowIpcSchema } from './window-schema'
 import { appIpcSchema } from './app-schema'
+import { keyboardIpcSchema } from './keyboard-schema'
 
 // Define all IPC channel schemas in one place
 export const ipcSchemas = {
   ...windowIpcSchema,
   ...appIpcSchema,
+  ...keyboardIpcSchema,
 } as const
 
 // Extract types from Zod schemas
@@ -28,3 +30,4 @@ export const validateArgs = <T extends ChannelName>(channel: T, args: unknown[])
 export const validateReturn = <T extends ChannelName>(channel: T, data: unknown): ChannelReturn<T> => {
   return ipcSchemas[channel].return.parse(data) as ChannelReturn<T>
 }
+
