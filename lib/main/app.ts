@@ -3,8 +3,8 @@ import { join } from 'path'
 import appIcon from '@/resources/build/icon.png?asset'
 import { registerResourcesProtocol } from './protocols'
 import { registerWindowHandlers } from '@/lib/conveyor/handlers/window-handler'
-import { registerKeyboardHandlers } from '@/lib/conveyor/handlers/keyboard-handler'
 import { registerAppHandlers } from '@/lib/conveyor/handlers/app-handler'
+import { registerKeyboardHandlers } from '@/lib/conveyor/handlers/keyboard-handler'
 
 export function createAppWindow(): void {
   // Ensure static assets resolve correctly across environments
@@ -36,8 +36,8 @@ export function createAppWindow(): void {
 
   // Wire IPC handlers that depend on the window instance
   registerWindowHandlers(mainWindow)
-  registerKeyboardHandlers(mainWindow)
   registerAppHandlers(app)
+  registerKeyboardHandlers(mainWindow)
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
@@ -56,5 +56,4 @@ export function createAppWindow(): void {
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
-
 }

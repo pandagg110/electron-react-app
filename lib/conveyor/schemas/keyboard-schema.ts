@@ -1,22 +1,18 @@
 import { z } from 'zod'
 
-const normalizeKeySchema = z
-  .string()
-  .min(1)
-  .transform((value) => value.trim())
-  .transform((value) => (value.length === 1 ? value.toUpperCase() : value))
-
 export const keyboardIpcSchema = {
   'keyboard-register-binding': {
-    args: z.tuple([z.union([normalizeKeySchema, z.null()])]),
+    args: z.tuple([z.string().nullable()]),
     return: z.object({
       success: z.boolean(),
       key: z.string().nullable(),
+      error: z.string().optional(),
     }),
   },
   'keyboard-unregister-all': {
     args: z.tuple([]),
-    return: z.boolean(),
+    return: z.object({
+      success: z.boolean(),
+    }),
   },
 } as const
-

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+﻿import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Button } from '@/app/components/ui/button'
 import { GROUP_ROLES, ROLE_CONFIG } from '@/app/constants/battle'
 import { useBattleContext } from '@/app/providers/battle-provider'
@@ -270,7 +270,6 @@ export const GroupScreen = () => {
   const keyboard = useConveyor('keyboard')
   const [tick, setTick] = useState(() => timeNow())
   const [isBinding, setIsBinding] = useState(false)
-  const lastShortcutTriggerRef = useRef(0)
   const role = profile.role
   const handleBack = () => selectRole(null)
   const isCompact = useMediaQuery(COMPACT_MEDIA_QUERY)
@@ -516,20 +515,6 @@ export const GroupScreen = () => {
           </div>
         </div>
       </section>
-
-      {/* WIP big action button placeholder
-        <section className="rounded-lg border border-slate-800 bg-slate-900/80 px-4 py-4 shadow-sm" style={{ WebkitAppRegion: 'no-drag' }}>
-          <div className="flex flex-col gap-3">
-            <button className="w-full rounded-2xl py-6 text-xl font-bold">manualButtonLabel</button>
-            <div className="flex items-center justify-between text-xs text-slate-400">
-              <span>Cooldown</span>
-              <span className="font-semibold text-slate-200">cooldownStatusText</span>
-            </div>
-            <Button variant="destructive" disabled>Reset cd</Button>
-          </div>
-        </section>
-      */}
-
 
     </div>
   )
