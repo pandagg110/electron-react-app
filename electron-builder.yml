@@ -1,11 +1,12 @@
 appId: com.guasam.era
-productName: 便利店66
+productName: 便利店百业战指挥工具
 directories:
   buildResources: resources/build
 files:
   - '!**/.vscode/*'
   - '!src/*'
   - '!electron.vite.config.{js,ts,mjs,cjs}'
+  - '!electron.vite.config.*'
   - '!{.eslintignore,.eslintrc.cjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
   - '!**/node_modules/node-global-key-listener/bin/MacKeyServer*'
@@ -13,7 +14,7 @@ files:
 asarUnpack:
   - resources/**
 win:
-  executableName: 便利店66
+  executableName: 便利店百业战指挥工具
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}
