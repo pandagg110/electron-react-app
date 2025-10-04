@@ -6,6 +6,7 @@ import type { GroupRole, MemberSnapshot, Role } from '@/app/types/battle'
 import { cn } from '@/lib/utils'
 import { now as timeNow } from '@/app/utils/time'
 import { useMediaQuery } from '@/app/hooks/use-media-query'
+import { useConveyor } from '@/app/hooks/use-conveyor'
 
 const GROUP_LABELS: Record<GroupRole, string> = {
   healer: '治疗',
@@ -266,6 +267,7 @@ const CompactGroupOverlay = ({
 
 export const GroupScreen = () => {
   const { profile, state, triggerCooldown, setKeyBinding, selectRole, globalShortcutReady } = useBattleContext()
+  const keyboard = useConveyor('keyboard')
   const [tick, setTick] = useState(() => timeNow())
   const [isBinding, setIsBinding] = useState(false)
   const role = profile.role
@@ -300,13 +302,45 @@ export const GroupScreen = () => {
       }
       if (event.repeat) return
       if (event.key.toUpperCase() === profile.keyBinding?.toUpperCase()) {
+        const now = Date.now()
+        if (now - lastShortcutTriggerRef.current < 80) {
+          return
+        }
+        lastShortcutTriggerRef.current = now
         event.preventDefault()
         triggerCooldown(profile.id, 'cast')
       }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [profile.id, profile.keyBinding, triggerCooldown, globalShortcutReady])
+  }, [globalShortcutReady, profile.id, profile.keyBinding, triggerCooldown])
+
+  useEffect(() => {
+    if (!profile.keyBinding) return
+    if (!keyboard || typeof keyboard.onShortcut !== 'function') return
+
+    const expected =
+      profile.keyBinding.length === 1 ? profile.keyBinding.toUpperCase() : profile.keyBinding
+
+    const unsubscribe = keyboard.onShortcut(({ key }) => {
+      const normalized = key.length === 1 ? key.toUpperCase() : key
+      if (normalized !== expected) {
+        return
+      }
+      const now = Date.now()
+      if (now - lastShortcutTriggerRef.current < 80) {
+        return
+      }
+      lastShortcutTriggerRef.current = now
+      triggerCooldown(profile.id, 'cast')
+    })
+
+    return () => {
+      if (typeof unsubscribe === 'function') {
+        unsubscribe()
+      }
+    }
+  }, [keyboard, profile.id, profile.keyBinding, triggerCooldown])
 
   if (!isGroupRole(role)) {
     return (

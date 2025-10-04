@@ -536,6 +536,7 @@ export const BattleProvider = ({ children }: { children: React.ReactNode }) => {
     const unsubscribe = keyboard.onShortcut(({ key }) => {
       const normalized = key.length === 1 ? key.toUpperCase() : key
       if (normalized === expected) {
+        console.debug('[keyboard] renderer shortcut received', normalized)
         triggerCooldown(profile.id, 'cast')
       }
     })
