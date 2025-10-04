@@ -1,5 +1,5 @@
 appId: com.guasam.era
-productName: ElectronReactApp
+productName: 便利店66
 directories:
   buildResources: resources/build
 files:
@@ -13,7 +13,7 @@ files:
 asarUnpack:
   - resources/**
 win:
-  executableName: ElectronReactApp
+  executableName: 便利店66
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}
