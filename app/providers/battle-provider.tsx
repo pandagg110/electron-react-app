@@ -40,6 +40,7 @@ interface BattleContextValue {
   sessionId: string
   supabaseReady: boolean
   globalShortcutReady: boolean
+  audioMuted: boolean
   updateName: (name: string) => void
   selectRole: (role: Role | null) => void
   setKeyBinding: (key: string | null) => void
@@ -49,6 +50,8 @@ interface BattleContextValue {
   resetAllCooldowns: () => void
   startBattle: () => void
   stopBattle: () => void
+  setAudioMuted: (muted: boolean) => void
+  toggleAudioMuted: () => void
 }
 
 const BattleContext = createContext<BattleContextValue | undefined>(undefined)
@@ -76,6 +79,7 @@ export const BattleProvider = ({ children }: { children: React.ReactNode }) => {
   const [sessionId] = useState(() => env.defaultSessionId)
   const [state, dispatch] = useReducer(battleReducer, undefined, createInitialBattleState)
   const [globalShortcutReady, setGlobalShortcutReady] = useState(false)
+  const [audioMuted, setAudioMutedState] = useState<boolean>(() => loadJson(STORAGE_KEYS.audio, false))
   const stateRef = useRef<BattleState>(state)
   const channelRef = useRef<RealtimeChannel | null>(null)
   const lastSelfSignatureRef = useRef<string | null>(null)
@@ -83,7 +87,7 @@ export const BattleProvider = ({ children }: { children: React.ReactNode }) => {
   const [connection, setConnection] = useState<ConnectionState>(() =>
     supabaseReady
       ? { status: 'idle' }
-      : { status: 'idle', message: 'Supabase 未配置，当前为本地模式' }
+      : { status: 'idle', message: 'Supabase not configured; local-only mode' }
   )
 
   useEffect(() => {
@@ -93,6 +97,39 @@ export const BattleProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     saveJson(STORAGE_KEYS.profile, profile)
   }, [profile])
+
+  useEffect(() => {
+    saveJson(STORAGE_KEYS.audio, audioMuted)
+  }, [audioMuted])
+
+  const setAudioMuted = useCallback((muted: boolean) => {
+    setAudioMutedState(muted)
+  }, [])
+
+  const toggleAudioMuted = useCallback(() => {
+    setAudioMutedState((prev) => !prev)
+  }, [])
+
+  useEffect(() => {
+    const handleToggle = (_event: Event) => {
+      toggleAudioMuted()
+    }
+
+    const handleSet = (event: Event) => {
+      const detail = (event as CustomEvent<{ muted: boolean }>).detail
+      if (detail && typeof detail.muted === 'boolean') {
+        setAudioMuted(detail.muted)
+      }
+    }
+
+    window.addEventListener('battle:toggle-audio-mute', handleToggle)
+    window.addEventListener('battle:set-audio-mute', handleSet)
+
+    return () => {
+      window.removeEventListener('battle:toggle-audio-mute', handleToggle)
+      window.removeEventListener('battle:set-audio-mute', handleSet)
+    }
+  }, [setAudioMuted, toggleAudioMuted])
 
   const sendBroadcast = useCallback(
     (payload: BroadcastPayload) => {
@@ -324,7 +361,7 @@ export const BattleProvider = ({ children }: { children: React.ReactNode }) => {
         supabase.removeChannel(channelRef.current)
         channelRef.current = null
       }
-      setConnection({ status: 'idle', message: 'Supabase 未配置，当前为本地模式' })
+      setConnection({ status: 'idle', message: 'Supabase not configured; local-only mode' })
       return
     }
 
@@ -343,7 +380,7 @@ export const BattleProvider = ({ children }: { children: React.ReactNode }) => {
 
     channel.subscribe(async (status) => {
       if (status === 'SUBSCRIBED') {
-        setConnection({ status: 'connected', message: 'Realtime 联机广播' })
+        setConnection({ status: 'connected', message: 'Realtime broadcast connected' })
         try {
           await channel.track({ profileId: getMemberKey(profile.name), name: profile.name, role: profile.role })
         } catch (error) {
@@ -354,7 +391,7 @@ export const BattleProvider = ({ children }: { children: React.ReactNode }) => {
         }
       } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
         console.warn('Supabase realtime channel unavailable, falling back to offline mode')
-        setConnection({ status: 'error', message: 'Supabase 未连接，已切换为本地离线模式' })
+        setConnection({ status: 'error', message: 'Supabase offline; switched to local mode' })
         if (channelRef.current === channel) {
           channelRef.current = null
         }
@@ -631,6 +668,7 @@ export const BattleProvider = ({ children }: { children: React.ReactNode }) => {
       sessionId,
       supabaseReady,
       globalShortcutReady,
+      audioMuted,
       updateName,
       selectRole,
       setKeyBinding,
@@ -640,6 +678,8 @@ export const BattleProvider = ({ children }: { children: React.ReactNode }) => {
       resetAllCooldowns,
       startBattle,
       stopBattle,
+      setAudioMuted,
+      toggleAudioMuted,
     }),
     [
       state,
@@ -648,6 +688,7 @@ export const BattleProvider = ({ children }: { children: React.ReactNode }) => {
       sessionId,
       supabaseReady,
       globalShortcutReady,
+      audioMuted,
       updateName,
       selectRole,
       setKeyBinding,
@@ -657,6 +698,8 @@ export const BattleProvider = ({ children }: { children: React.ReactNode }) => {
       resetAllCooldowns,
       startBattle,
       stopBattle,
+      setAudioMuted,
+      toggleAudioMuted,
     ]
   )
 

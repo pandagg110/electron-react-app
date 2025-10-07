@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Button } from '@/app/components/ui/button'
 import { GROUP_ROLES, ROLE_CONFIG } from '@/app/constants/battle'
 import { useBattleContext } from '@/app/providers/battle-provider'
@@ -22,6 +22,9 @@ const ROLE_RING_COLORS: Record<GroupRole, string> = {
 
 const COMPACT_MEDIA_QUERY = '(max-width: 120px)'
 const NEXT_TURN_AUDIO_SRC = new URL('../../../voice/语音播报.mp3', import.meta.url).href
+
+const NEXT_TURN_AUDIO_VARIANT_SRC = new URL('../../../voice/语音播报2.mp3', import.meta.url).href
+const VARIANT_AUDIO_PROBABILITY = 0.01
 
 const isGroupRole = (role: Role | null): role is GroupRole => !!role && GROUP_ROLES.includes(role as GroupRole)
 
@@ -93,6 +96,8 @@ interface CompactGroupOverlayProps {
   onCast: () => void
   onReset: () => void
   onBack: () => void
+  audioMuted: boolean
+  onToggleMute: () => void
 }
 
 const CompactActionButton = ({
@@ -177,6 +182,8 @@ const CompactGroupOverlay = ({
   onCast,
   onReset,
   onBack,
+  audioMuted,
+  onToggleMute,
 }: CompactGroupOverlayProps) => {
   const nextName = nextCaster ? nextCaster.name : '等待排队'
   const isMeNext = nextCaster?.profileId === me?.profileId
@@ -260,13 +267,20 @@ const CompactGroupOverlay = ({
         <CompactActionButton onClick={onReset} tone="danger" title="误触或重置冷却">
           重置冷却
         </CompactActionButton>
+        <CompactActionButton
+          onClick={onToggleMute}
+          active={audioMuted}
+          title={audioMuted ? '恢复语音播报' : '静音语音播报'}
+        >
+          {audioMuted ? '取消静音' : '静音播报'}
+        </CompactActionButton>
       </section>
     </div>
   )
 }
 
 export const GroupScreen = () => {
-  const { profile, state, triggerCooldown, setKeyBinding, selectRole, globalShortcutReady } = useBattleContext()
+  const { profile, state, triggerCooldown, setKeyBinding, selectRole, globalShortcutReady, audioMuted, toggleAudioMuted } = useBattleContext()
   const keyboard = useConveyor('keyboard')
   const [tick, setTick] = useState(() => timeNow())
   const [isBinding, setIsBinding] = useState(false)
@@ -381,7 +395,7 @@ export const GroupScreen = () => {
   const hasPlayedNextTurnRef = useRef(false)
 
   useEffect(() => {
-    if (!isNextMe) {
+    if (!isNextMe || audioMuted) {
       hasPlayedNextTurnRef.current = false
       return
     }
@@ -389,7 +403,9 @@ export const GroupScreen = () => {
     if (hasPlayedNextTurnRef.current) return
 
     hasPlayedNextTurnRef.current = true
-    const audio = new Audio(NEXT_TURN_AUDIO_SRC)
+    const source =
+      Math.random() < VARIANT_AUDIO_PROBABILITY ? NEXT_TURN_AUDIO_VARIANT_SRC : NEXT_TURN_AUDIO_SRC
+    const audio = new Audio(source)
     const playPromise = audio.play()
     if (playPromise && typeof playPromise.catch === 'function') {
       playPromise.catch(() => {
@@ -401,12 +417,15 @@ export const GroupScreen = () => {
       audio.pause()
       audio.currentTime = 0
     }
-  }, [isNextMe])
+  }, [audioMuted, isNextMe])
 
 
   const handleBindRequest = () => setIsBinding(true)
   const handleCast = () => triggerCooldown(profile.id, 'cast')
   const handleReset = () => triggerCooldown(profile.id, 'reset')
+  const handleToggleMute = useCallback(() => {
+    toggleAudioMuted()
+  }, [toggleAudioMuted])
 
   if (isCompact) {
     return (
@@ -422,6 +441,8 @@ export const GroupScreen = () => {
         onCast={handleCast}
         onReset={handleReset}
         onBack={handleBack}
+        audioMuted={audioMuted}
+        onToggleMute={handleToggleMute}
       />
     )
   }
@@ -503,7 +524,7 @@ export const GroupScreen = () => {
       <section className="rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-3 shadow-sm" style={{ WebkitAppRegion: 'no-drag' }}>
         <div className="flex flex-col gap-2">
           <p className="text-xs font-semibold text-slate-400">操作指令</p>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-4">
             <Button size="sm" variant={isBinding ? 'secondary' : 'outline'} onClick={handleBindRequest}>
               {isBinding ? '按键监听中' : '绑定大招按键'}
             </Button>
@@ -512,6 +533,9 @@ export const GroupScreen = () => {
             </Button>
             <Button size="sm" variant="destructive" onClick={handleReset}>
               误触 / 重置冷却
+            </Button>
+            <Button size="sm" variant={audioMuted ? 'secondary' : 'outline'} onClick={handleToggleMute}>
+              {audioMuted ? '取消静音播报' : '静音播报'}
             </Button>
           </div>
         </div>

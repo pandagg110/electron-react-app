@@ -2,6 +2,7 @@ const STORAGE_KEYS = {
   profile: 'battle.profile',
   mapPanel: 'battle.mapPanel',
   overlay: 'battle.overlay',
+  audio: 'battle.audio',
 } as const
 
 export const loadJson = <T>(key: string, fallback: T): T => {

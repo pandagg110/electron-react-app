@@ -102,6 +102,20 @@ export const menuItems: TitlebarMenu[] = [
     ],
   },
   {
+    name: 'Sound',
+    items: [
+      {
+        name: 'Toggle Voice Broadcast',
+        shortcut: 'Ctrl+Shift+M',
+        actionCallback: () => {
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('battle:toggle-audio-mute'))
+          }
+        },
+      },
+    ],
+  },
+  {
     name: 'Window',
     items: [
       {
